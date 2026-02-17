@@ -265,7 +265,15 @@ app.get('/api/items', async (req, res) => {
     if (!employeeId) return res.status(400).json({ success: false, message: 'employeeId مطلوب' });
 
     const items = await getRows(SHEET_NAMES.ITEMS);
-    const myItems = items.filter(item => (item.EMPLOYEE_ID || item.employee_id) === employeeId);
+    
+    // البحث عن معرف المندوب في أي عمود يبدأ بـ EMPLOYEE_ID أو يحتوي على "مندوب"
+    const myItems = items.filter(item => {
+      return Object.keys(item).some(key => {
+        const normalizedKey = key.toUpperCase().trim();
+        return (normalizedKey.startsWith('EMPLOYEE_ID') || normalizedKey.includes('مندوب')) && 
+               String(item[key]).trim() === String(employeeId).trim();
+      });
+    });
     res.json({ success: true, items: myItems });
   } catch (error) {
     console.error(error);
@@ -281,25 +289,36 @@ app.get('/api/item-details', async (req, res) => {
   try {
     const { rfq, lineItem } = req.query;
     const items = await getRows(SHEET_NAMES.ITEMS);
-    const item = items.find(i => (i.RFQ || i.rfq) === rfq && (i.LINE_ITEM || i.line_item) === lineItem);
+    const item = items.find(i => {
+      const iRFQ = String(i.RFQ || i.rfq || i['RFQ'] || '').trim();
+      const iLine = String(i.LINE_ITEM || i.line_item || i['LINE_ITEM'] || '').trim();
+      return iRFQ === String(rfq).trim() && iLine === String(lineItem).trim();
+    });
+    
     if (!item) return res.status(404).json({ success: false, message: 'البند غير موجود' });
 
     // جلب صورة من DeepSeek
-    const desc = item.DESCRIPTION || item.description || item.LINE_ITEM || item.line_item;
+    const desc = item.DESCRIPTION || item.description || item.LINE_ITEM || item.line_item || 'item';
     const imageUrl = await fetchItemImage(desc);
+
+    // دالة مساعدة لجلب القيمة بغض النظر عن حالة الأحرف
+    const getVal = (obj, keyName) => {
+      const foundKey = Object.keys(obj).find(k => k.toUpperCase().trim() === keyName.toUpperCase());
+      return foundKey ? obj[foundKey] : '';
+    };
 
     res.json({
       success: true,
       item: {
-        rfq: item.RFQ || item.rfq,
-        line_item: item.LINE_ITEM || item.line_item,
-        uom: item.UOM || item.uom,
-        part_no: item.PART_NO || item.part_no,
-        description: item.DESCRIPTION || item.description,
-        date_rq: item.DATE_RQ || item.date_rq,
-        res_date: item.RES_DATE || item.res_date,
-        qty: item.QTY || item.qty,
-        price: item.PRICE || item.price,
+        rfq: getVal(item, 'RFQ'),
+        line_item: getVal(item, 'LINE_ITEM'),
+        uom: getVal(item, 'UOM'),
+        part_no: getVal(item, 'PART_NO'),
+        description: getVal(item, 'DESCRIPTION'),
+        date_rq: getVal(item, 'DATE_RQ') || getVal(item, 'DATE/RFQ'),
+        res_date: getVal(item, 'RES_DATE') || getVal(item, 'RES. DATE'),
+        qty: getVal(item, 'QTY'),
+        price: getVal(item, 'PRICE'),
       },
       imageUrl,
     });
