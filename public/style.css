@@ -323,6 +323,119 @@ input[type="checkbox"] {
     font-weight: 600;
 }
 
+/* تنسيق سطر RFQ مع العدسة */
+.rfq-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.search-icon-btn {
+    background: none;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    box-shadow: none;
+    width: auto;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.search-icon-btn:hover {
+    transform: scale(1.2);
+    background: none;
+    box-shadow: none;
+}
+
+.search-icon-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: var(--primary);
+}
+
+/* تنسيق النافذة المنبثقة (Modal) */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.7);
+    backdrop-filter: blur(5px);
+    animation: fadeIn 0.3s;
+}
+
+.modal-content {
+    background-color: white;
+    margin: 10% auto;
+    padding: 25px;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 450px;
+    position: relative;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+    animation: slideUp 0.4s ease-out;
+}
+
+.close-modal {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.modal-body {
+    text-align: center;
+}
+
+.modal-body img {
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    border: 2px solid var(--border-light);
+}
+
+.modal-body h4 {
+    color: var(--primary-dark);
+    margin-bottom: 15px;
+}
+
+.modal-body p {
+    color: var(--text-primary);
+    line-height: 1.6;
+    font-size: 16px;
+    background: var(--bg-light);
+    padding: 15px;
+    border-radius: 12px;
+    border-right: 4px solid var(--primary);
+}
+
+.loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 .quote-section {
     background: linear-gradient(135deg, rgba(211, 107, 30, 0.05) 0%, rgba(242, 112, 156, 0.05) 100%);
     padding: 24px;

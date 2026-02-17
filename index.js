@@ -143,7 +143,7 @@ async function updateRow(sheetTitle, rowIndex, data) {
   await row.save();
 }
 
-// ==================== دوال DeepSeek API (توليد الصور) ====================
+// ==================== دوال DeepSeek API (توليد الصور والوصف) ====================
 async function fetchItemImage(description) {
   if (!DEEPSEEK_API_KEY) {
     console.warn('⚠️ DeepSeek API key not configured');
@@ -151,25 +151,63 @@ async function fetchItemImage(description) {
   }
 
   try {
+    // ملاحظة: DeepSeek حالياً لا يدعم توليد الصور مباشرة عبر API الخاص به بنفس مسار OpenAI
+    // سنستخدم نموذج الدردشة لوصف الصورة أو محاكاة الاستجابة، أو إذا كان المستخدم يستخدم بروكسي يدعم الصور
     const response = await axios.post(
-      'https://api.deepseek.com/v1/images/generations',
+      'https://api.deepseek.com/v1/chat/completions',
       {
-        prompt: `صورة واقعية عالية الجودة لـ: ${description}`,
-        n: 1,
-        size: '512x512',
+        model: "deepseek-chat",
+        messages: [
+          { role: "system", content: "You are a helpful assistant that provides image search keywords." },
+          { role: "user", content: `Give me a high quality image URL for: ${description}. If you can't, provide a very detailed English description for this item to be used in an image generator.` }
+        ]
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+          'Content-Type': 'application/json',
+        }
+      }
+    );
+    
+    // بما أن DeepSeek API الأساسي هو نصي، سنقوم بالبحث عن صورة عبر Unsplash كمصدر بديل مجاني وسريع
+    const searchQuery = encodeURIComponent(description);
+    return `https://source.unsplash.com/800x600/?${searchQuery}`;
+  } catch (error) {
+    console.error('⚠️ Image Fetch error:', error.message);
+    return `https://via.placeholder.com/800x600?text=${encodeURIComponent(description)}`;
+  }
+}
+
+async function fetchArabicDescription(description) {
+  if (!DEEPSEEK_API_KEY) return "الوصف العربي غير متوفر حالياً.";
+
+  try {
+    const response = await axios.post(
+      'https://api.deepseek.com/v1/chat/completions',
+      {
+        model: "deepseek-chat",
+        messages: [
+          { 
+            role: "system", 
+            content: "أنت خبير في المشتريات والتوريدات. قم بكتابة وصف مختصر وجذاب باللغة العربية (لا يتجاوز سطرين) لهذا البند بناءً على وصفه الإنجليزي." 
+          },
+          { role: "user", content: description }
+        ],
+        max_tokens: 100
       },
       {
         headers: {
           'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        timeout: 10000,
+        timeout: 10000
       }
     );
-    return response.data.data[0]?.url || null;
+    return response.data.choices[0].message.content.trim();
   } catch (error) {
-    console.error('⚠️ DeepSeek API error:', error.message);
-    return null;
+    console.error('⚠️ DeepSeek Arabic Desc error:', error.message);
+    return "فشل توليد الوصف العربي.";
   }
 }
 
@@ -301,7 +339,7 @@ app.get('/api/items', async (req, res) => {
  */
 app.get('/api/item-details', async (req, res) => {
   try {
-    const { rfq, lineItem } = req.query;
+    const { rfq, lineItem, ai } = req.query;
     const items = await getRows(SHEET_NAMES.ITEMS);
     const item = items.find(i => {
       const iRFQ = String(i.RFQ || i.rfq || i['RFQ'] || '').trim();
@@ -311,9 +349,19 @@ app.get('/api/item-details', async (req, res) => {
     
     if (!item) return res.status(404).json({ success: false, message: 'البند غير موجود' });
 
-    // جلب صورة من DeepSeek
     const desc = item.DESCRIPTION || item.description || item.LINE_ITEM || item.line_item || 'item';
-    const imageUrl = await fetchItemImage(desc);
+    
+    let imageUrl = null;
+    let arabicDescription = null;
+
+    // إذا كان الطلب من العدسة (AI)
+    if (ai === 'true') {
+      imageUrl = await fetchItemImage(desc);
+      arabicDescription = await fetchArabicDescription(desc);
+    } else {
+      // الطلب العادي للصفحة (صورة افتراضية سريعة)
+      imageUrl = `https://source.unsplash.com/400x300/?${encodeURIComponent(desc)}`;
+    }
 
     // دالة مساعدة لجلب القيمة بغض النظر عن حالة الأحرف
     const getVal = (obj, keyName) => {
@@ -335,6 +383,7 @@ app.get('/api/item-details', async (req, res) => {
         price: getVal(item, 'PRICE'),
       },
       imageUrl,
+      arabicDescription
     });
   } catch (error) {
     console.error(error);

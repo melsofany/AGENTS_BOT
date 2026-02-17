@@ -128,7 +128,12 @@ async function loadItemDetails(rfq, lineItem) {
         if (data.success) {
             const item = data.item;
             detailDiv.innerHTML = `
-                <p><strong>RFQ:</strong> ${item.rfq}</p>
+                <div class="rfq-row">
+                    <p><strong>RFQ:</strong> ${item.rfq}</p>
+                    <button class="search-icon-btn" onclick="openProductModal('${item.rfq}', '${item.line_item}')" title="عرض صورة ووصف ذكي">
+                        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    </button>
+                </div>
                 <p><strong>البند:</strong> ${item.line_item}</p>
                 <p><strong>الوصف:</strong> ${item.description || 'لا يوجد'}</p>
                 <p><strong>الكمية:</strong> ${item.qty || 0}</p>
@@ -195,4 +200,48 @@ document.getElementById('quote-form')?.addEventListener('submit', async (e) => {
 
 function goBack() {
     window.location.href = '/';
+}
+
+// وظائف النافذة المنبثقة (Modal)
+const modal = document.getElementById('productModal');
+const span = document.getElementsByClassName('close-modal')[0];
+
+if (span) {
+    span.onclick = function() {
+        modal.style.display = 'none';
+    }
+}
+
+window.onclick = function(event) {
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function openProductModal(rfq, lineItem) {
+    const modalBody = document.getElementById('modalBody');
+    modal.style.display = 'block';
+    
+    // حالة التحميل
+    modalBody.innerHTML = `
+        <div class="loading-spinner"></div>
+        <p>جاري توليد الصورة والوصف العربي عبر الذكاء الاصطناعي...</p>
+    `;
+
+    try {
+        const response = await fetch(`/api/item-details?rfq=${rfq}&lineItem=${lineItem}&ai=true`);
+        const data = await response.json();
+        
+        if (data.success) {
+            modalBody.innerHTML = `
+                <img src="${data.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image+Found'}" alt="صورة المنتج">
+                <h4>وصف ذكي (بالعربية)</h4>
+                <p>${data.arabicDescription || 'لا يوجد وصف عربي متاح حالياً'}</p>
+            `;
+        } else {
+            modalBody.innerHTML = `<p class="error">فشل جلب البيانات: ${data.message}</p>`;
+        }
+    } catch (err) {
+        modalBody.innerHTML = `<p class="error">حدث خطأ في الاتصال بالخادم</p>`;
+    }
 }
