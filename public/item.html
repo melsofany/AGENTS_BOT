@@ -13,30 +13,48 @@
             <img src="unnamed_(1).png" alt="شعار قرطبة" class="company-logo">
             <div class="company-name">قرطبة للتوريدات</div>
         </div>
+
         <h2>تفاصيل البند</h2>
         <div id="item-detail"></div>
         <div id="item-image"></div>
 
-        <h3>إضافة عرض سعر</h3>
-        <form id="quote-form">
-            <input type="text" id="supplier" placeholder="اسم المورد" required>
-            <input type="number" id="price" placeholder="السعر" step="0.01" required>
-            <label>
-                <input type="checkbox" id="taxIncluded"> شامل الضريبة
-            </label>
-            <select id="originalOrCopy" required>
-                <option value="">نوع القطعة</option>
-                <option value="أصلي">أصلي</option>
-                <option value="كوبي">كوبي</option>
-                <option value="بديل">بديل</option>
-            </select>
-            <input type="number" id="deliveryDays" placeholder="مدة التوريد (أيام)" required>
-            <input type="date" id="startDate" placeholder="تاريخ البدء" required>
-            <input type="date" id="endDate" placeholder="تاريخ الانتهاء" required>
-            <button type="submit">حفظ العرض</button>
-        </form>
-        <div id="form-message"></div>
-        <button onclick="goBack()">رجوع</button>
+        <div class="quote-section">
+            <h3>إضافة عرض سعر</h3>
+            <form id="quote-form">
+                <div class="form-row">
+                    <input type="text" id="supplier" placeholder="اسم المورد" required>
+                </div>
+                <div class="form-row">
+                    <input type="number" id="price" placeholder="السعر" step="0.01" required>
+                </div>
+                <div class="form-row">
+                    <label>
+                        <input type="checkbox" id="taxIncluded"> شامل الضريبة
+                    </label>
+                </div>
+                <div class="form-row">
+                    <select id="originalOrCopy" required>
+                        <option value="">اختر نوع القطعة</option>
+                        <option value="أصلي">أصلي</option>
+                        <option value="كوبي">كوبي</option>
+                        <option value="بديل">بديل</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <input type="number" id="deliveryDays" placeholder="مدة التوريد (أيام)" required>
+                </div>
+                <div class="form-row">
+                    <input type="date" id="startDate" placeholder="تاريخ البدء" required>
+                </div>
+                <div class="form-row">
+                    <input type="date" id="endDate" placeholder="تاريخ الانتهاء" required>
+                </div>
+                <button type="submit" class="submit-btn">حفظ العرض</button>
+            </form>
+            <div id="form-message"></div>
+        </div>
+
+        <button class="back-btn" onclick="goBack()">رجوع</button>
     </div>
     <script src="app.js"></script>
 </body>

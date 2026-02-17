@@ -14,11 +14,20 @@
             <div class="company-name">قرطبة للتوريدات</div>
             <div class="company-tagline">نظام إدارة عروض الأسعار</div>
         </div>
-        <h2>تسجيل الدخول</h2>
-        <input type="text" id="username" placeholder="اسم المستخدم" autocomplete="off">
-        <input type="password" id="password" placeholder="كلمة المرور">
-        <button onclick="login()">دخول</button>
-        <div id="login-error" class="error"></div>
+
+        <div class="login-form-wrapper">
+            <h2>تسجيل الدخول</h2>
+            <div class="login-form">
+                <div class="form-row">
+                    <input type="text" id="username" placeholder="اسم المستخدم" autocomplete="off">
+                </div>
+                <div class="form-row">
+                    <input type="password" id="password" placeholder="كلمة المرور">
+                </div>
+                <button onclick="login()" class="login-btn">دخول</button>
+            </div>
+            <div id="login-error" class="error"></div>
+        </div>
     </div>
 
     <div class="container" id="items-screen" style="display: none;">
@@ -26,8 +35,10 @@
             <img src="unnamed_(1).png" alt="شعار قرطبة" class="company-logo">
             <div class="company-name">قرطبة للتوريدات</div>
         </div>
+
         <h2>البنود الخاصة بك</h2>
         <div id="items-list"></div>
+
         <button class="logout-btn" onclick="logout()">تسجيل خروج</button>
     </div>
 
