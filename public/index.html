@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام المندوبين</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <div class="container" id="login-screen">
+        <h2>🔐 تسجيل الدخول</h2>
+        <input type="text" id="username" placeholder="اسم المستخدم" autocomplete="off">
+        <input type="password" id="password" placeholder="كلمة المرور">
+        <button onclick="login()">دخول</button>
+        <div id="login-error" class="error"></div>
+    </div>
+
+    <div class="container" id="items-screen" style="display: none;">
+        <h2>📦 البنود الخاصة بك</h2>
+        <div id="items-list"></div>
+        <button class="logout-btn" onclick="logout()">تسجيل خروج</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
