@@ -68,8 +68,12 @@ async function updateRow(sheetTitle, rowIndex, data) {
 
 // ==================== دوال DeepSeek API (توليد الصور) ====================
 async function fetchItemImage(description) {
+  if (!DEEPSEEK_API_KEY) {
+    console.warn('⚠️ DeepSeek API key not configured');
+    return null;
+  }
+
   try {
-    // هذه واجهة افتراضية – راجع توثيق DeepSeek الفعلي
     const response = await axios.post(
       'https://api.deepseek.com/v1/images/generations',
       {
@@ -82,11 +86,12 @@ async function fetchItemImage(description) {
           'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
           'Content-Type': 'application/json',
         },
+        timeout: 10000,
       }
     );
-    return response.data.data[0].url; // عدل حسب استجابة API الفعلية
+    return response.data.data[0]?.url || null;
   } catch (error) {
-    console.error('❌ DeepSeek API error:', error.message);
+    console.error('⚠️ DeepSeek API error:', error.message);
     return null;
   }
 }
@@ -256,15 +261,18 @@ const bot = new Telegraf(BOT_TOKEN);
 
 // أمر /start – يرسل زراً لفتح التطبيق المصغر
 bot.start((ctx) => {
-  // استخدام RENDER_EXTERNAL_URL إذا كان موجوداً (يحتوي على https://) وإلا استخدم localhost
-  const webAppUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
-  // تأكد من أن الرابط لا يحتوي على بروتوكول مكرر
-  const finalUrl = webAppUrl.startsWith('http') ? webAppUrl : `https://${webAppUrl}`;
-  
+  let webAppUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  if (!webAppUrl.startsWith('http')) {
+    webAppUrl = `https://${webAppUrl}`;
+  }
+  if (webAppUrl.endsWith('/')) {
+    webAppUrl = webAppUrl.slice(0, -1);
+  }
+
   ctx.reply(
     '👋 مرحباً بك في نظام المندوبين!\nاضغط على الزر أدناه لفتح التطبيق.',
     Markup.inlineKeyboard([
-      Markup.button.webApp('🚀 فتح التطبيق', finalUrl),
+      Markup.button.webApp('🚀 فتح التطبيق', webAppUrl),
     ])
   );
 });
@@ -296,7 +304,13 @@ bot.command('login', async (ctx) => {
   }
 });
 
-bot.launch().then(() => console.log('🤖 البوت يعمل...'));
+bot.launch().then(() => {
+  console.log('🤖 البوت يعمل...');
+  console.log(`📱 رابط التطبيق: ${process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`}`);
+}).catch(err => {
+  console.error('❌ فشل تشغيل البوت:', err.message);
+  process.exit(1);
+});
 
 // ==================== تشغيل الخادم ====================
 app.listen(PORT, () => {
