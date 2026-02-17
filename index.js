@@ -206,15 +206,26 @@ app.post('/api/login', async (req, res) => {
     
     const users = await getRows(SHEET_NAMES.USERS);
     console.log(`Fetched ${users.length} users from sheet.`);
+    if (users.length > 0) {
+      console.log('Sample User Data (First User Keys):', Object.keys(users[0]));
+      console.log('Sample User Data (First User Values):', JSON.stringify(users[0]));
+    }
     
     const user = users.find(u => {
-      const uName = String(u.username || '').trim();
-      const uPass = String(u.password || '').trim();
-      const uStatus = String(u.status || '').trim().toLowerCase();
+      // محاولة الحصول على القيم بأسماء أعمدة مختلفة (حساسة لحالة الأحرف أو باللغة العربية)
+      const uName = String(u.username || u.Username || u['اسم المستخدم'] || '').trim();
+      const uPass = String(u.password || u.Password || u['كلمة المرور'] || '').trim();
+      const uStatus = String(u.status || u.Status || u['الحالة'] || u['النشاط'] || '').trim().toLowerCase();
       
-      return uName === String(username).trim() && 
-             uPass === String(password).trim() && 
-             (uStatus === 'yes' || uStatus === 'نعم' || uStatus === 'true');
+      const match = uName === String(username).trim() && 
+                    uPass === String(password).trim() && 
+                    (uStatus === 'yes' || uStatus === 'نعم' || uStatus === 'true' || uStatus === ''); // السماح إذا كانت فارغة كخيار احتياطي
+      
+      if (uName === String(username).trim()) {
+        console.log(`Checking user ${uName}: Password Match: ${uPass === String(password).trim()}, Status: "${uStatus}", Final Match: ${match}`);
+      }
+      
+      return match;
     });
 
     if (!user) {
