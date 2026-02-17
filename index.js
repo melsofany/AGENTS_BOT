@@ -11,7 +11,7 @@ require('dotenv').config();
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 // تحميل ملف اعتماد Google Sheets
 let CREDENTIALS;
@@ -110,7 +110,11 @@ function isValidDate(dateStr) {
 // ==================== إعداد خادم Express ====================
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public'))); // خدمة الملفات الثابتة
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  next();
+});
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ==================== نقاط نهاية API (للتطبيق المصغر) ====================
 
@@ -321,6 +325,6 @@ if (BOT_TOKEN) {
 }
 
 // ==================== تشغيل الخادم ====================
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 خادم الويب يعمل على المنفذ ${PORT}`);
 });
