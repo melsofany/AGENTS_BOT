@@ -6,13 +6,40 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 20px;
     margin: 0;
+}
+
+.company-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px 0;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.company-logo {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 15px;
+    display: block;
+    object-fit: contain;
+}
+
+.company-name {
+    font-size: 24px;
+    font-weight: bold;
+    color: #8B4513;
+    margin: 10px 0 5px;
+}
+
+.company-tagline {
+    font-size: 14px;
+    color: #666;
 }
 
 .container {
@@ -43,7 +70,7 @@ input, select, button {
 }
 
 button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
     color: white;
     border: none;
     cursor: pointer;
@@ -65,12 +92,12 @@ button:hover {
     border-radius: 10px;
     padding: 15px;
     margin-bottom: 10px;
-    border-right: 4px solid #667eea;
+    border-right: 4px solid #8B4513;
 }
 
 .item-card h4 {
     margin-bottom: 10px;
-    color: #667eea;
+    color: #8B4513;
 }
 
 .item-card p {
