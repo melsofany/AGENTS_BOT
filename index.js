@@ -266,6 +266,12 @@ app.get('/api/items', async (req, res) => {
 
     const items = await getRows(SHEET_NAMES.ITEMS);
     
+    // دالة مساعدة لجلب القيمة بغض النظر عن حالة الأحرف
+    const getVal = (obj, keyName) => {
+      const foundKey = Object.keys(obj).find(k => k.toUpperCase().trim() === keyName.toUpperCase());
+      return foundKey ? obj[foundKey] : '';
+    };
+
     // البحث عن معرف المندوب في أي عمود يبدأ بـ EMPLOYEE_ID أو يحتوي على "مندوب"
     const myItems = items.filter(item => {
       return Object.keys(item).some(key => {
@@ -273,7 +279,15 @@ app.get('/api/items', async (req, res) => {
         return (normalizedKey.startsWith('EMPLOYEE_ID') || normalizedKey.includes('مندوب')) && 
                String(item[key]).trim() === String(employeeId).trim();
       });
-    });
+    }).map(item => ({
+      // توحيد المسميات للواجهة الأمامية
+      rfq: getVal(item, 'RFQ'),
+      line_item: getVal(item, 'LINE_ITEM'),
+      description: getVal(item, 'DESCRIPTION'),
+      qty: getVal(item, 'QTY'),
+      price: getVal(item, 'PRICE')
+    }));
+
     res.json({ success: true, items: myItems });
   } catch (error) {
     console.error(error);
