@@ -13,18 +13,28 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const PORT = process.env.PORT || 5000;
 
+// التحقق من وجود المتغيرات الأساسية
+if (!GOOGLE_SHEET_ID) {
+  console.error('❌ خطأ: GOOGLE_SHEET_ID غير موجود في Secrets');
+}
+
 // تحميل ملف اعتماد Google Sheets
 let CREDENTIALS;
-if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
+const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+
+if (email && privateKey) {
   CREDENTIALS = {
-    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    client_email: email,
+    private_key: privateKey.replace(/\\n/g, '\n'),
   };
+  console.log('✅ تم تحميل اعتمادات Google من متغيرات البيئة');
 } else {
   try {
     CREDENTIALS = require('./credentials.json');
+    console.log('✅ تم تحميل اعتمادات Google من ملف credentials.json');
   } catch (e) {
-    console.error('❌ لم يتم العثور على ملف credentials.json أو أسرار البيئة. يرجى إعدادها.');
+    console.error('❌ لم يتم العثور على اعتمادات Google Sheets. يرجى إضافتها إلى Secrets.');
     CREDENTIALS = { client_email: 'test@test.com', private_key: 'test' };
   }
 }
