@@ -28,15 +28,34 @@ if (email && privateKey) {
     // تنظيف المفتاح الخاص من أي مسافات أو علامات اقتباس زائدة ومعالجة السطور الجديدة
     let cleanedKey = privateKey
       .replace(/\\n/g, '\n')
+      .replace(/\n/g, '\n') // تأكد من معالجة السطور الجديدة الفعلية
       .replace(/"/g, '')
       .trim();
 
-    // تأكد من وجود الترويسة والتذييل الصحيحين
-    if (!cleanedKey.includes('-----BEGIN PRIVATE KEY-----')) {
-      cleanedKey = `-----BEGIN PRIVATE KEY-----\n${cleanedKey}`;
-    }
-    if (!cleanedKey.includes('-----END PRIVATE KEY-----')) {
-      cleanedKey = `${cleanedKey}\n-----END PRIVATE KEY-----`;
+    // إذا كان المفتاح لا يحتوي على السطور الجديدة المتوقعة (أحياناً يأتي كسطر واحد طويل)
+    if (!cleanedKey.includes('\n') && cleanedKey.length > 100) {
+      // محاولة إعادة بناء السطور إذا كان المفتاح مشوهاً
+      const header = '-----BEGIN PRIVATE KEY-----';
+      const footer = '-----END PRIVATE KEY-----';
+      let body = cleanedKey
+        .replace(header, '')
+        .replace(footer, '')
+        .replace(/\s/g, '');
+      
+      // تقسيم الجسم إلى أسطر بطول 64 حرفاً (تنسيق PEM القياسي)
+      const lines = [];
+      for (let i = 0; i < body.length; i += 64) {
+        lines.push(body.substring(i, i + 64));
+      }
+      cleanedKey = `${header}\n${lines.join('\n')}\n${footer}`;
+    } else {
+      // تأكد من وجود الترويسة والتذييل الصحيحين
+      if (!cleanedKey.includes('-----BEGIN PRIVATE KEY-----')) {
+        cleanedKey = `-----BEGIN PRIVATE KEY-----\n${cleanedKey}`;
+      }
+      if (!cleanedKey.includes('-----END PRIVATE KEY-----')) {
+        cleanedKey = `${cleanedKey}\n-----END PRIVATE KEY-----`;
+      }
     }
 
     CREDENTIALS = {
