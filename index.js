@@ -19,7 +19,8 @@ try {
   CREDENTIALS = require('./credentials.json');
 } catch (e) {
   console.error('❌ لم يتم العثور على ملف credentials.json. يرجى وضعه في المجلد الرئيسي.');
-  process.exit(1);
+  // process.exit(1); // تعطيل الخروج للاختبار
+  CREDENTIALS = { client_email: 'test@test.com', private_key: 'test' };
 }
 
 // أسماء الأوراق في الجدول
@@ -257,66 +258,69 @@ app.post('/api/add-quote', async (req, res) => {
 });
 
 // ==================== إعداد بوت تيليجرام ====================
-const bot = new Telegraf(BOT_TOKEN);
+if (BOT_TOKEN) {
+  const bot = new Telegraf(BOT_TOKEN);
 
-// أمر /start – يرسل زراً لفتح التطبيق المصغر
-bot.start((ctx) => {
-  let webAppUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
-  if (!webAppUrl.startsWith('http')) {
-    webAppUrl = `https://${webAppUrl}`;
-  }
-  if (webAppUrl.endsWith('/')) {
-    webAppUrl = webAppUrl.slice(0, -1);
-  }
-
-  ctx.reply(
-    '👋 مرحباً بك في نظام المندوبين!\nاضغط على الزر أدناه لفتح التطبيق.',
-    Markup.inlineKeyboard([
-      Markup.button.webApp('🚀 فتح التطبيق', webAppUrl),
-    ])
-  );
-});
-
-// أمر /login (احتياطي للدخول السريع)
-bot.command('login', async (ctx) => {
-  const args = ctx.message.text.split(' ');
-  if (args.length < 3) {
-    return ctx.reply('❌ استخدم: /login username password');
-  }
-  const username = args[1];
-  const password = args[2];
-  const telegramId = ctx.from.id.toString();
-
-  try {
-    const users = await getRows(SHEET_NAMES.USERS);
-    const user = users.find(u => u.username === username && u.status?.toLowerCase() === 'yes');
-
-    if (!user || user.password_hash !== password) {
-      return ctx.reply('❌ اسم مستخدم أو كلمة مرور غير صحيحة');
+  // أمر /start – يرسل زراً لفتح التطبيق المصغر
+  bot.start((ctx) => {
+    let webAppUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+    if (!webAppUrl.startsWith('http')) {
+      webAppUrl = `https://${webAppUrl}`;
+    }
+    if (webAppUrl.endsWith('/')) {
+      webAppUrl = webAppUrl.slice(0, -1);
     }
 
-    await updateRow(SHEET_NAMES.USERS, user._rowIndex, { telegram_id: telegramId });
+    ctx.reply(
+      '👋 مرحباً بك في نظام المندوبين!\nاضغط على الزر أدناه لفتح التطبيق.',
+      Markup.inlineKeyboard([
+        Markup.button.webApp('🚀 فتح التطبيق', webAppUrl),
+      ])
+    );
+  });
 
-    ctx.reply(`✅ مرحباً ${user.full_name}!\nيمكنك الآن فتح التطبيق من القائمة.`);
-  } catch (err) {
-    console.error(err);
-    ctx.reply('⚠️ حدث خطأ');
-  }
-});
+  // أمر /login (احتياطي للدخول السريع)
+  bot.command('login', async (ctx) => {
+    const args = ctx.message.text.split(' ');
+    if (args.length < 3) {
+      return ctx.reply('❌ استخدم: /login username password');
+    }
+    const username = args[1];
+    const password = args[2];
+    const telegramId = ctx.from.id.toString();
 
-bot.launch().then(() => {
-  console.log('🤖 البوت يعمل...');
-  console.log(`📱 رابط التطبيق: ${process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`}`);
-}).catch(err => {
-  console.error('❌ فشل تشغيل البوت:', err.message);
-  process.exit(1);
-});
+    try {
+      const users = await getRows(SHEET_NAMES.USERS);
+      const user = users.find(u => u.username === username && u.status?.toLowerCase() === 'yes');
+
+      if (!user || user.password_hash !== password) {
+        return ctx.reply('❌ اسم مستخدم أو كلمة مرور غير صحيحة');
+      }
+
+      await updateRow(SHEET_NAMES.USERS, user._rowIndex, { telegram_id: telegramId });
+
+      ctx.reply(`✅ مرحباً ${user.full_name}!\nيمكنك الآن فتح التطبيق من القائمة.`);
+    } catch (err) {
+      console.error(err);
+      ctx.reply('⚠️ حدث خطأ');
+    }
+  });
+
+  bot.launch().then(() => {
+    console.log('🤖 البوت يعمل...');
+    console.log(`📱 رابط التطبيق: ${process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`}`);
+  }).catch(err => {
+    console.error('❌ فشل تشغيل البوت:', err.message);
+  });
+
+  // إيقاف البوت عند إنهاء التطبيق
+  process.once('SIGINT', () => bot.stop('SIGINT'));
+  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+} else {
+  console.warn('⚠️ BOT_TOKEN غير موجود، سيتم تشغيل خادم الويب فقط.');
+}
 
 // ==================== تشغيل الخادم ====================
 app.listen(PORT, () => {
   console.log(`🌐 خادم الويب يعمل على المنفذ ${PORT}`);
 });
-
-// إيقاف البوت عند إنهاء التطبيق
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
