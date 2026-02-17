@@ -15,12 +15,18 @@ const PORT = process.env.PORT || 5000;
 
 // تحميل ملف اعتماد Google Sheets
 let CREDENTIALS;
-try {
-  CREDENTIALS = require('./credentials.json');
-} catch (e) {
-  console.error('❌ لم يتم العثور على ملف credentials.json. يرجى وضعه في المجلد الرئيسي.');
-  // process.exit(1); // تعطيل الخروج للاختبار
-  CREDENTIALS = { client_email: 'test@test.com', private_key: 'test' };
+if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
+  CREDENTIALS = {
+    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  };
+} else {
+  try {
+    CREDENTIALS = require('./credentials.json');
+  } catch (e) {
+    console.error('❌ لم يتم العثور على ملف credentials.json أو أسرار البيئة. يرجى إعدادها.');
+    CREDENTIALS = { client_email: 'test@test.com', private_key: 'test' };
+  }
 }
 
 // أسماء الأوراق في الجدول
