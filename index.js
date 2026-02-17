@@ -256,11 +256,15 @@ const bot = new Telegraf(BOT_TOKEN);
 
 // أمر /start – يرسل زراً لفتح التطبيق المصغر
 bot.start((ctx) => {
-  const webAppUrl = `https://${process.env.RENDER_EXTERNAL_URL || `localhost:${PORT}`}`; // سيتم ضبطه تلقائياً على Render
+  // استخدام RENDER_EXTERNAL_URL إذا كان موجوداً (يحتوي على https://) وإلا استخدم localhost
+  const webAppUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  // تأكد من أن الرابط لا يحتوي على بروتوكول مكرر
+  const finalUrl = webAppUrl.startsWith('http') ? webAppUrl : `https://${webAppUrl}`;
+  
   ctx.reply(
     '👋 مرحباً بك في نظام المندوبين!\nاضغط على الزر أدناه لفتح التطبيق.',
     Markup.inlineKeyboard([
-      Markup.button.webApp('🚀 فتح التطبيق', webAppUrl),
+      Markup.button.webApp('🚀 فتح التطبيق', finalUrl),
     ])
   );
 });
