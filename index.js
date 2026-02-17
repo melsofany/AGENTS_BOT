@@ -112,9 +112,18 @@ async function getSheet(sheetTitle) {
 
 // قراءة جميع الصفوف وتحويلها إلى كائنات (مع إضافة رقم الصف)
 async function getRows(sheetTitle) {
-  const sheet = await getSheet(sheetTitle);
-  const rows = await sheet.getRows();
-  return rows.map(row => ({ ...row.toObject(), _rowIndex: row.rowNumber - 1 }));
+  try {
+    const sheet = await getSheet(sheetTitle);
+    const rows = await sheet.getRows();
+    return rows.map(row => {
+      const data = row.toObject();
+      // تأكد من أن جميع المفاتيح موجودة لتجنب أخطاء undefined لاحقاً
+      return { ...data, _rowIndex: row.rowNumber - 2 }; // تصحيح rowIndex ليتوافق مع مصفوفة getRows()
+    });
+  } catch (err) {
+    console.error(`Error fetching rows for ${sheetTitle}:`, err.message);
+    return [];
+  }
 }
 
 // إضافة صف جديد
@@ -127,8 +136,9 @@ async function addRow(sheetTitle, data) {
 async function updateRow(sheetTitle, rowIndex, data) {
   const sheet = await getSheet(sheetTitle);
   const rows = await sheet.getRows();
-  const row = rows[rowIndex];
-  if (!row) throw new Error('الصف غير موجود');
+  // البحث عن الصف باستخدام rowIndex المخزن
+  const row = rows.find(r => (r.rowNumber - 2) === rowIndex);
+  if (!row) throw new Error(`الصف في الفهرس ${rowIndex} غير موجود`);
   Object.assign(row, data);
   await row.save();
 }
@@ -192,12 +202,27 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password, telegramId } = req.body;
+    console.log(`Attempting login for username: ${username}`);
+    
     const users = await getRows(SHEET_NAMES.USERS);
-    const user = users.find(u => u.username === username && u.status?.toLowerCase() === 'yes');
+    console.log(`Fetched ${users.length} users from sheet.`);
+    
+    const user = users.find(u => {
+      const uName = String(u.username || '').trim();
+      const uPass = String(u.password || '').trim();
+      const uStatus = String(u.status || '').trim().toLowerCase();
+      
+      return uName === String(username).trim() && 
+             uPass === String(password).trim() && 
+             (uStatus === 'yes' || uStatus === 'نعم' || uStatus === 'true');
+    });
 
-    if (!user || user.password !== password) {
-      return res.status(401).json({ success: false, message: 'بيانات الدخول غير صحيحة' });
+    if (!user) {
+      console.log(`Login failed for ${username}: User not found or inactive.`);
+      return res.status(401).json({ success: false, message: 'بيانات الدخول غير صحيحة أو الحساب غير مفعل' });
     }
+    
+    console.log(`User ${username} authenticated successfully.`);
 
     // تحديث telegram_id
     await updateRow(SHEET_NAMES.USERS, user._rowIndex, { telegram_id: telegramId });
