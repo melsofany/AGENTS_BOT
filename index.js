@@ -212,20 +212,23 @@ app.post('/api/login', async (req, res) => {
     }
     
     const user = users.find(u => {
-      // محاولة الحصول على القيم بأسماء أعمدة مختلفة (حساسة لحالة الأحرف أو باللغة العربية)
-      const uName = String(u.username || u.Username || u['اسم المستخدم'] || '').trim();
-      const uPass = String(u.password || u.Password || u['كلمة المرور'] || '').trim();
-      const uStatus = String(u.status || u.Status || u['الحالة'] || u['النشاط'] || '').trim().toLowerCase();
+      // استخراج القيم مع مراعاة مسميات الأعمدة الفعلية (USERNAME, PASSWORD_HASH, STATUS, EMPLOYEE_ID)
+      const uName = String(u.USERNAME || u.username || u.Username || u['اسم المستخدم'] || '').trim();
+      const uPass = String(u.PASSWORD_HASH || u.PASSWORD || u.password || u.Password || u['كلمة المرور'] || '').trim();
+      const uStatus = String(u.STATUS || u.status || u.Status || u['الحالة'] || u['النشاط'] || '').trim().toLowerCase();
       
-      const match = uName === String(username).trim() && 
-                    uPass === String(password).trim() && 
-                    (uStatus === 'yes' || uStatus === 'نعم' || uStatus === 'true' || uStatus === ''); // السماح إذا كانت فارغة كخيار احتياطي
-      
-      if (uName === String(username).trim()) {
-        console.log(`Checking user ${uName}: Password Match: ${uPass === String(password).trim()}, Status: "${uStatus}", Final Match: ${match}`);
+      const inputUsername = String(username).trim();
+      const inputPassword = String(password).trim();
+
+      const isNameMatch = uName === inputUsername;
+      const isPassMatch = uPass === inputPassword;
+      const isStatusActive = (uStatus === 'yes' || uStatus === 'نعم' || uStatus === 'true' || uStatus === 'undefined' || uStatus === '');
+
+      if (isNameMatch) {
+        console.log(`Checking user ${uName}: PassMatch: ${isPassMatch}, StatusActive: ${isStatusActive} (Value: "${uStatus}")`);
       }
       
-      return match;
+      return isNameMatch && isPassMatch && isStatusActive;
     });
 
     if (!user) {
@@ -241,9 +244,9 @@ app.post('/api/login', async (req, res) => {
     res.json({
       success: true,
       user: {
-        employee_id: user.employee_id,
-        full_name: user.full_name,
-        role: user.role,
+        employee_id: user.EMPLOYEE_ID || user.employee_id,
+        full_name: user.FULL_NAME || user.full_name,
+        role: user.ROLE || user.role || 'user',
       },
     });
   } catch (error) {
@@ -262,7 +265,7 @@ app.get('/api/items', async (req, res) => {
     if (!employeeId) return res.status(400).json({ success: false, message: 'employeeId مطلوب' });
 
     const items = await getRows(SHEET_NAMES.ITEMS);
-    const myItems = items.filter(item => item.employee_id === employeeId);
+    const myItems = items.filter(item => (item.EMPLOYEE_ID || item.employee_id) === employeeId);
     res.json({ success: true, items: myItems });
   } catch (error) {
     console.error(error);
@@ -278,24 +281,25 @@ app.get('/api/item-details', async (req, res) => {
   try {
     const { rfq, lineItem } = req.query;
     const items = await getRows(SHEET_NAMES.ITEMS);
-    const item = items.find(i => i.rfq === rfq && i.line_item === lineItem);
+    const item = items.find(i => (i.RFQ || i.rfq) === rfq && (i.LINE_ITEM || i.line_item) === lineItem);
     if (!item) return res.status(404).json({ success: false, message: 'البند غير موجود' });
 
     // جلب صورة من DeepSeek
-    const imageUrl = await fetchItemImage(item.description || item.line_item);
+    const desc = item.DESCRIPTION || item.description || item.LINE_ITEM || item.line_item;
+    const imageUrl = await fetchItemImage(desc);
 
     res.json({
       success: true,
       item: {
-        rfq: item.rfq,
-        line_item: item.line_item,
-        uom: item.uom,
-        part_no: item.part_no,
-        description: item.description,
-        date_rq: item.date_rq,
-        res_date: item.res_date,
-        qty: item.qty,
-        price: item.price,
+        rfq: item.RFQ || item.rfq,
+        line_item: item.LINE_ITEM || item.line_item,
+        uom: item.UOM || item.uom,
+        part_no: item.PART_NO || item.part_no,
+        description: item.DESCRIPTION || item.description,
+        date_rq: item.DATE_RQ || item.date_rq,
+        res_date: item.RES_DATE || item.res_date,
+        qty: item.QTY || item.qty,
+        price: item.PRICE || item.price,
       },
       imageUrl,
     });
@@ -343,17 +347,17 @@ app.post('/api/add-quote', async (req, res) => {
     const quoteId = generateQuoteId();
 
     await addRow(SHEET_NAMES.QUOTATIONS, {
-      quote_id: quoteId,
-      rfq,
-      line_item: lineItem,
-      employee_id: employeeId,
-      supplier_name: supplierName,
-      price: parseFloat(price),
-      tax_included: taxIncluded ? 'نعم' : 'لا',
-      original_or_copy: originalOrCopy,
-      delivery_days: parseInt(deliveryDays),
-      start_date: startDate,
-      end_date: endDate,
+      QUOTE_ID: quoteId,
+      RFQ: rfq,
+      LINE_ITEM: lineItem,
+      EMPLOYEE_ID: employeeId,
+      SUPPLIER_NAME: supplierName,
+      PRICE: parseFloat(price),
+      TAX_INCLUDED: taxIncluded ? 'نعم' : 'لا',
+      ORIGINAL_OR_COPY: originalOrCopy,
+      DELIVERY_DAYS: parseInt(deliveryDays),
+      START_DATE: startDate,
+      END_DATE: endDate,
     });
 
     res.json({ success: true, message: 'تم إضافة عرض السعر بنجاح', quoteId });
