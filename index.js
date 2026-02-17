@@ -12,6 +12,7 @@ const BOT_TOKEN = process.env.BOT_TOKEN;
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const PORT = process.env.PORT || 5000;
+const GOOGLE_SERVICE_ACCOUNT_BASE64 = process.env.GOOGLE_SERVICE_ACCOUNT_BASE64;
 
 // التحقق من وجود المتغيرات الأساسية
 if (!GOOGLE_SHEET_ID) {
@@ -19,59 +20,65 @@ if (!GOOGLE_SHEET_ID) {
 }
 
 // تحميل ملف اعتماد Google Sheets
-let CREDENTIALS;
-const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+let CREDENTIALS = null;
 
-if (email && privateKey) {
+// 1. محاولة التحميل من Base64 (الأولوية القصوى بناءً على طلب المستخدم)
+if (GOOGLE_SERVICE_ACCOUNT_BASE64) {
   try {
-    // تنظيف المفتاح الخاص من أي مسافات أو علامات اقتباس زائدة ومعالجة السطور الجديدة
-    let cleanedKey = privateKey
-      .replace(/\\n/g, '\n')
-      .replace(/\n/g, '\n') // تأكد من معالجة السطور الجديدة الفعلية
-      .replace(/"/g, '')
-      .trim();
-
-    // إذا كان المفتاح لا يحتوي على السطور الجديدة المتوقعة (أحياناً يأتي كسطر واحد طويل)
-    if (!cleanedKey.includes('\n') && cleanedKey.length > 100) {
-      // محاولة إعادة بناء السطور إذا كان المفتاح مشوهاً
-      const header = '-----BEGIN PRIVATE KEY-----';
-      const footer = '-----END PRIVATE KEY-----';
-      let body = cleanedKey
-        .replace(header, '')
-        .replace(footer, '')
-        .replace(/\s/g, '');
-      
-      // تقسيم الجسم إلى أسطر بطول 64 حرفاً (تنسيق PEM القياسي)
-      const lines = [];
-      for (let i = 0; i < body.length; i += 64) {
-        lines.push(body.substring(i, i + 64));
-      }
-      cleanedKey = `${header}\n${lines.join('\n')}\n${footer}`;
-    } else {
-      // تأكد من وجود الترويسة والتذييل الصحيحين
-      if (!cleanedKey.includes('-----BEGIN PRIVATE KEY-----')) {
-        cleanedKey = `-----BEGIN PRIVATE KEY-----\n${cleanedKey}`;
-      }
-      if (!cleanedKey.includes('-----END PRIVATE KEY-----')) {
-        cleanedKey = `${cleanedKey}\n-----END PRIVATE KEY-----`;
-      }
-    }
-
-    CREDENTIALS = {
-      client_email: email,
-      private_key: cleanedKey,
-    };
-    console.log('✅ تم تحميل اعتمادات Google من متغيرات البيئة');
-  } catch (err) {
-    console.error('❌ خطأ في معالجة المفتاح الخاص:', err.message);
+    const decoded = Buffer.from(GOOGLE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8');
+    CREDENTIALS = JSON.parse(decoded);
+    console.log('✅ تم تحميل اعتمادات Google من المتغير البيئي Base64');
+  } catch (e) {
+    console.error('❌ خطأ في فك تشفير GOOGLE_SERVICE_ACCOUNT_BASE64:', e.message);
   }
-} else {
+}
+
+// 2. محاولة التحميل من المتغيرات المنفصلة (إذا لم يتوفر Base64)
+if (!CREDENTIALS) {
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+
+  if (email && privateKey) {
+    try {
+      let cleanedKey = privateKey
+        .replace(/\\n/g, '\n')
+        .replace(/\n/g, '\n')
+        .replace(/"/g, '')
+        .trim();
+
+      if (!cleanedKey.includes('\n') && cleanedKey.length > 100) {
+        const header = '-----BEGIN PRIVATE KEY-----';
+        const footer = '-----END PRIVATE KEY-----';
+        let body = cleanedKey.replace(header, '').replace(footer, '').replace(/\s/g, '');
+        const lines = [];
+        for (let i = 0; i < body.length; i += 64) {
+          lines.push(body.substring(i, i + 64));
+        }
+        cleanedKey = `${header}\n${lines.join('\n')}\n${footer}`;
+      } else {
+        if (!cleanedKey.includes('-----BEGIN PRIVATE KEY-----')) {
+          cleanedKey = `-----BEGIN PRIVATE KEY-----\n${cleanedKey}`;
+        }
+        if (!cleanedKey.includes('-----END PRIVATE KEY-----')) {
+          cleanedKey = `${cleanedKey}\n-----END PRIVATE KEY-----`;
+        }
+      }
+
+      CREDENTIALS = { client_email: email, private_key: cleanedKey };
+      console.log('✅ تم تحميل اعتمادات Google من متغيرات البيئة المنفصلة');
+    } catch (err) {
+      console.error('❌ خطأ في معالجة المفتاح الخاص:', err.message);
+    }
+  }
+}
+
+// 3. محاولة التحميل من ملف credentials.json (كخيار أخير)
+if (!CREDENTIALS) {
   try {
     CREDENTIALS = require('./credentials.json');
     console.log('✅ تم تحميل اعتمادات Google من ملف credentials.json');
   } catch (e) {
-    console.error('❌ لم يتم العثور على اعتمادات Google Sheets. يرجى إضافتها إلى Secrets.');
+    console.warn('⚠️ لم يتم العثور على اعتمادات Google Sheets. يرجى إضافتها إلى Secrets.');
     CREDENTIALS = { client_email: 'test@test.com', private_key: 'test' };
   }
 }
@@ -87,6 +94,9 @@ const SHEET_NAMES = {
 async function getSheet(sheetTitle) {
   if (!GOOGLE_SHEET_ID) {
     throw new Error('❌ GOOGLE_SHEET_ID غير موجود في متغيرات البيئة (Secrets)');
+  }
+  if (!CREDENTIALS || !CREDENTIALS.client_email || CREDENTIALS.client_email === 'test@test.com') {
+    throw new Error('❌ اعتمادات Google Sheets غير صالحة أو غير متوفرة');
   }
   const serviceAccountAuth = new JWT({
     email: CREDENTIALS.client_email,
@@ -280,7 +290,7 @@ app.post('/api/add-quote', async (req, res) => {
 
     // التحقق من صحة البيانات
     if (!employeeId || !rfq || !lineItem || !supplierName || !price || taxIncluded === undefined || !originalOrCopy || !deliveryDays || !startDate || !endDate) {
-      return res.status(400).json({ success: false, message: 'جميع الحقول مطلوبة' });
+      return res.status(400).json({ success: false, message: 'جميع الحقول مطلوب' });
     }
 
     // التحقق من تاريخ البدء: START_DATE - 1 >= اليوم
