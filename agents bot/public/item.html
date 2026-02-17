@@ -1,39 +1,0 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تفاصيل البند</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-</head>
-<body>
-    <div class="container">
-        <h2>🔍 تفاصيل البند</h2>
-        <div id="item-detail"></div>
-        <div id="item-image"></div>
-
-        <h3>➕ إضافة عرض سعر</h3>
-        <form id="quote-form">
-            <input type="text" id="supplier" placeholder="اسم المورد" required>
-            <input type="number" id="price" placeholder="السعر" step="0.01" required>
-            <label>
-                <input type="checkbox" id="taxIncluded"> شامل الضريبة
-            </label>
-            <select id="originalOrCopy" required>
-                <option value="">نوع القطعة</option>
-                <option value="أصلي">أصلي</option>
-                <option value="كوبي">كوبي</option>
-                <option value="بديل">بديل</option>
-            </select>
-            <input type="number" id="deliveryDays" placeholder="مدة التوريد (أيام)" required>
-            <input type="date" id="startDate" placeholder="تاريخ البدء" required>
-            <input type="date" id="endDate" placeholder="تاريخ الانتهاء" required>
-            <button type="submit">💾 حفظ العرض</button>
-        </form>
-        <div id="form-message"></div>
-        <button onclick="goBack()">🔙 رجوع</button>
-    </div>
-    <script src="app.js"></script>
-</body>
-</html>
