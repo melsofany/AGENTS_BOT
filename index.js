@@ -129,7 +129,7 @@ app.post('/api/login', async (req, res) => {
     const users = await getRows(SHEET_NAMES.USERS);
     const user = users.find(u => u.username === username && u.status?.toLowerCase() === 'yes');
 
-    if (!user || user.password_hash !== password) {
+    if (!user || user.password !== password) {
       return res.status(401).json({ success: false, message: 'بيانات الدخول غير صحيحة' });
     }
 
@@ -297,7 +297,7 @@ if (BOT_TOKEN) {
       const users = await getRows(SHEET_NAMES.USERS);
       const user = users.find(u => u.username === username && u.status?.toLowerCase() === 'yes');
 
-      if (!user || user.password_hash !== password) {
+      if (!user || user.password !== password) {
         return ctx.reply('❌ اسم مستخدم أو كلمة مرور غير صحيحة');
       }
 
