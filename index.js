@@ -24,11 +24,29 @@ const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
 const privateKey = process.env.GOOGLE_PRIVATE_KEY;
 
 if (email && privateKey) {
-  CREDENTIALS = {
-    client_email: email,
-    private_key: privateKey.replace(/\\n/g, '\n'),
-  };
-  console.log('✅ تم تحميل اعتمادات Google من متغيرات البيئة');
+  try {
+    // تنظيف المفتاح الخاص من أي مسافات أو علامات اقتباس زائدة ومعالجة السطور الجديدة
+    let cleanedKey = privateKey
+      .replace(/\\n/g, '\n')
+      .replace(/"/g, '')
+      .trim();
+
+    // تأكد من وجود الترويسة والتذييل الصحيحين
+    if (!cleanedKey.includes('-----BEGIN PRIVATE KEY-----')) {
+      cleanedKey = `-----BEGIN PRIVATE KEY-----\n${cleanedKey}`;
+    }
+    if (!cleanedKey.includes('-----END PRIVATE KEY-----')) {
+      cleanedKey = `${cleanedKey}\n-----END PRIVATE KEY-----`;
+    }
+
+    CREDENTIALS = {
+      client_email: email,
+      private_key: cleanedKey,
+    };
+    console.log('✅ تم تحميل اعتمادات Google من متغيرات البيئة');
+  } catch (err) {
+    console.error('❌ خطأ في معالجة المفتاح الخاص:', err.message);
+  }
 } else {
   try {
     CREDENTIALS = require('./credentials.json');
