@@ -32,6 +32,9 @@ const SHEET_NAMES = {
 
 // ==================== دوال مساعدة للتعامل مع Google Sheets ====================
 async function getSheet(sheetTitle) {
+  if (!GOOGLE_SHEET_ID) {
+    throw new Error('❌ GOOGLE_SHEET_ID غير موجود في متغيرات البيئة (Secrets)');
+  }
   const serviceAccountAuth = new JWT({
     email: CREDENTIALS.client_email,
     key: CREDENTIALS.private_key,
@@ -145,8 +148,8 @@ app.post('/api/login', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'خطأ داخلي في الخادم' });
+    console.error('❌ Login Error:', error);
+    res.status(500).json({ success: false, message: `خطأ في الاتصال بالقاعدة: ${error.message}` });
   }
 });
 
