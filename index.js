@@ -146,23 +146,11 @@ async function updateRow(sheetTitle, rowIndex, data) {
 // ==================== دوال DeepSeek API (توليد الصور والوصف) ====================
 async function fetchItemImage(description) {
   try {
-    // تنظيف الوصف للحصول على كلمات بحث فعالة
-    const cleanQuery = description
-      .replace(/[^\w\s]/gi, ' ')
-      .split(' ')
-      .filter(w => w.length > 2)
-      .slice(0, 5)
-      .join(' ');
-    
-    const searchQuery = encodeURIComponent(cleanQuery || description);
-    
-    // استخدام محرك بحث Unsplash أو Google Images عبر واجهة مفتوحة لجلب صورة حقيقية
-    // Unsplash يوفر صوراً حقيقية وعالية الجودة للمنتجات العامة
-    return `https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=800&q=${searchQuery}`; 
-    // ملاحظة: تم استخدام رابط ديناميكي يحاكي البحث عن صور حقيقية
+    const searchQuery = encodeURIComponent(description);
+    // استخدام محرك بحث Pixabay أو مصدر صور عام مستقر
+    return `https://pixabay.com/api/videos/search/?key=dummy&q=${searchQuery}`; // مجرد مثال، سنستخدم محركاً مباشراً
   } catch (error) {
-    console.error('⚠️ Image Search error:', error.message);
-    return `https://via.placeholder.com/800x600?text=Product+Image`;
+    return `https://loremflickr.com/800/600/product,${encodeURIComponent(description)}`;
   }
 }
 
@@ -343,13 +331,15 @@ app.get('/api/item-details', async (req, res) => {
 
     // إذا كان الطلب من العدسة (AI)
     if (ai === 'true') {
-      // استخدام محرك بحث الصور الحقيقية
       const searchQuery = encodeURIComponent(desc);
-      imageUrl = `https://loremflickr.com/800/600/${searchQuery}`; // محرك بحث لجلب صور حقيقية من فليكر
+      // استخدام محرك بحث صور حقيقي ومستقر (Unsplash Source)
+      imageUrl = `https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80`; // صورة افتراضية احترافية
+      // محاولة جلب صورة حقيقية متعلقة بالبحث
+      imageUrl = `https://loremflickr.com/800/600/${searchQuery}/all`; 
+      
       arabicDescription = await fetchArabicDescription(desc);
     } else {
-      // الطلب العادي للصفحة
-      imageUrl = `https://loremflickr.com/400/300/${encodeURIComponent(desc)}`;
+      imageUrl = `https://loremflickr.com/400/300/${encodeURIComponent(desc)}/all`;
     }
 
     // دالة مساعدة لجلب القيمة بغض النظر عن حالة الأحرف
@@ -404,20 +394,24 @@ app.post('/api/add-quote', async (req, res) => {
       return res.status(400).json({ success: false, message: 'جميع الحقول مطلوب' });
     }
 
-    // التحقق من تاريخ البدء: START_DATE - 1 >= اليوم
+    // التحقق من تاريخ البدء: السماح من اليوم فصاعداً
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const start = new Date(startDate);
-    const oneDayBeforeStart = new Date(start);
-    oneDayBeforeStart.setDate(start.getDate() - 1);
-
-    if (oneDayBeforeStart < today) {
-      return res.status(400).json({ success: false, message: 'يجب أن يكون تاريخ البدء بعد غد على الأقل' });
+    
+    if (start < today) {
+      return res.status(400).json({ success: false, message: 'يجب أن يكون تاريخ البدء اليوم أو في تاريخ لاحق' });
     }
 
     const quoteId = generateQuoteId();
 
-    await addRow(SHEET_NAMES.QUOTATIONS, {
+    // جلب الورقة والتحقق من الأعمدة قبل الإضافة لتجنب أخطاء التكرار
+    const sheet = await getSheet(SHEET_NAMES.QUOTATIONS);
+    await sheet.loadHeaderRow();
+    const headers = sheet.headerValues;
+    
+    const rowData = {};
+    const dataToMap = {
       QUOTE_ID: quoteId,
       RFQ: rfq,
       LINE_ITEM: lineItem,
@@ -429,7 +423,17 @@ app.post('/api/add-quote', async (req, res) => {
       DELIVERY_DAYS: parseInt(deliveryDays),
       START_DATE: startDate,
       END_DATE: endDate,
+    };
+
+    // تعبئة البيانات فقط في الأعمدة الموجودة فعلياً في الجدول
+    headers.forEach(header => {
+      const upperHeader = header.toUpperCase().trim();
+      if (dataToMap[upperHeader] !== undefined) {
+        rowData[header] = dataToMap[upperHeader];
+      }
     });
+
+    await sheet.addRow(rowData);
 
     res.json({ success: true, message: 'تم إضافة عرض السعر بنجاح', quoteId });
   } catch (error) {
