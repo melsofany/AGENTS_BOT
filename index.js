@@ -443,6 +443,7 @@ app.post('/api/add-quote', async (req, res) => {
       rfq,
       lineItem,
       supplierName,
+      supplierPhone,
       price,
       taxIncluded,
       originalOrCopy,
@@ -452,8 +453,14 @@ app.post('/api/add-quote', async (req, res) => {
     } = req.body;
 
     // التحقق من صحة البيانات
-    if (!employeeId || !rfq || !lineItem || !supplierName || !price || taxIncluded === undefined || !originalOrCopy || !deliveryDays || !startDate || !endDate) {
+    if (!employeeId || !rfq || !lineItem || !supplierName || !supplierPhone || !price || taxIncluded === undefined || !originalOrCopy || !deliveryDays || !startDate || !endDate) {
       return res.status(400).json({ success: false, message: 'جميع الحقول مطلوب' });
+    }
+
+    // التحقق من رقم الهاتف
+    const phoneRegex = /^01[0125][0-9]{8}$/;
+    if (!phoneRegex.test(supplierPhone)) {
+      return res.status(400).json({ success: false, message: 'رقم الهاتف غير صالح (يجب أن يكون 11 رقماً ويبدأ بـ 01)' });
     }
 
     // التحقق من تاريخ البدء: السماح من اليوم فصاعداً
@@ -476,6 +483,7 @@ app.post('/api/add-quote', async (req, res) => {
       LINE_ITEM: lineItem,
       EMPLOYEE_ID: employeeId,
       SUPPLIER_NAME: supplierName,
+      SUPPLIER_PHONE: supplierPhone,
       PRICE: parseFloat(price),
       TAX_INCLUDED: taxIncluded ? 'نعم' : 'لا',
       ORIGINAL_OR_COPY: originalOrCopy,
@@ -487,7 +495,7 @@ app.post('/api/add-quote', async (req, res) => {
     // بدلاً من استخدام sheet.addRow (التي تفحص الرؤوس)، سنستخدم sheet.addRows أو الطريقة اليدوية
     // ولكن الطريقة الأكثر أماناً هي محاولة الإضافة كمصفوفة مباشرة
     const rowArray = [
-      quoteId, rfq, lineItem, employeeId, supplierName, 
+      quoteId, rfq, lineItem, employeeId, supplierName, supplierPhone,
       parseFloat(price), taxIncluded ? 'نعم' : 'لا', 
       originalOrCopy, parseInt(deliveryDays), startDate, endDate
     ];

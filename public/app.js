@@ -180,11 +180,21 @@ document.getElementById('quote-form')?.addEventListener('submit', async (e) => {
     const lineItem = urlParams.get('lineItem');
     const employeeId = currentUser?.employee_id || JSON.parse(localStorage.getItem('tg_user')).employee_id;
 
+    const supplierPhone = document.getElementById('supplierPhone').value.trim();
+    const phoneRegex = /^01[0125][0-9]{8}$/;
+
+    if (!phoneRegex.test(supplierPhone)) {
+        document.getElementById('form-message').className = 'error';
+        document.getElementById('form-message').textContent = '⚠️ رقم الهاتف يجب أن يكون 11 رقماً ويبدأ بـ 01';
+        return;
+    }
+
     const formData = {
         employeeId,
         rfq,
         lineItem,
         supplierName: document.getElementById('supplier').value,
+        supplierPhone,
         price: document.getElementById('price').value,
         taxIncluded: document.getElementById('taxIncluded').checked,
         originalOrCopy: document.getElementById('originalOrCopy').value,
