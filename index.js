@@ -249,9 +249,46 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ==================== نقاط نهاية API (للتطبيق المصغر) ====================
 
 /**
+ * GET /api/check-auth
+ * يتحقق مما إذا كان Telegram ID مسجلاً في النظام
+ */
+app.get('/api/check-auth', async (req, res) => {
+  try {
+    const { telegramId } = req.query;
+    if (!telegramId) return res.status(400).json({ success: false, message: 'Telegram ID مطلوب' });
+
+    console.log(`Checking auth for Telegram ID: ${telegramId}`);
+    const users = await getRows(SHEET_NAMES.USERS);
+    
+    const user = users.find(u => {
+      const uID = String(u.TELEGRAM_ID || u.telegram_id || u['معرف تيليجرام'] || '').trim();
+      const uStatus = String(u.STATUS || u.status || u.Status || u['الحالة'] || u['النشاط'] || '').trim().toLowerCase();
+      const isStatusActive = (uStatus === 'yes' || uStatus === 'نعم' || uStatus === 'true' || uStatus === 'undefined' || uStatus === '');
+      return uID === String(telegramId).trim() && isStatusActive;
+    });
+
+    if (user) {
+      res.json({
+        success: true,
+        user: {
+          employee_id: user.EMPLOYEE_ID || user.employee_id,
+          username: user.USERNAME || user.username,
+          full_name: user.FULL_NAME || user.full_name,
+          role: user.ROLE || user.role || 'user',
+        },
+      });
+    } else {
+      res.json({ success: false, message: 'عذراً، هذا الحساب غير مسجل أو غير مفعل. يرجى تسجيل الدخول أولاً لربط حسابك.' });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'خطأ في التحقق من الهوية' });
+  }
+});
+
+/**
  * POST /api/login
- * يتلقى { username, password, telegramId }
- * يتحقق من بيانات المستخدم في Google Sheets
+ * يتحقق من بيانات المستخدم ويربطها بـ Telegram ID
  */
 app.post('/api/login', async (req, res) => {
   try {
@@ -259,53 +296,37 @@ app.post('/api/login', async (req, res) => {
     console.log(`Attempting login for username: ${username}`);
     
     const users = await getRows(SHEET_NAMES.USERS);
-    console.log(`Fetched ${users.length} users from sheet.`);
-    if (users.length > 0) {
-      console.log('Sample User Data (First User Keys):', Object.keys(users[0]));
-      console.log('Sample User Data (First User Values):', JSON.stringify(users[0]));
-    }
-    
     const user = users.find(u => {
-      // استخراج القيم مع مراعاة مسميات الأعمدة الفعلية (USERNAME, PASSWORD_HASH, STATUS, EMPLOYEE_ID)
       const uName = String(u.USERNAME || u.username || u.Username || u['اسم المستخدم'] || '').trim();
       const uPass = String(u.PASSWORD_HASH || u.PASSWORD || u.password || u.Password || u['كلمة المرور'] || '').trim();
       const uStatus = String(u.STATUS || u.status || u.Status || u['الحالة'] || u['النشاط'] || '').trim().toLowerCase();
       
-      const inputUsername = String(username).trim();
-      const inputPassword = String(password).trim();
+      return uName === String(username).trim() && 
+             uPass === String(password).trim() && 
+             (uStatus === 'yes' || uStatus === 'نعم' || uStatus === 'true' || uStatus === 'undefined' || uStatus === '');
+    });
 
-      const isNameMatch = uName === inputUsername;
-      const isPassMatch = uPass === inputPassword;
-      const isStatusActive = (uStatus === 'yes' || uStatus === 'نعم' || uStatus === 'true' || uStatus === 'undefined' || uStatus === '');
-
-      if (isNameMatch) {
-        console.log(`Checking user ${uName}: PassMatch: ${isPassMatch}, StatusActive: ${isStatusActive} (Value: "${uStatus}")`);
+    if (user) {
+      // ربط الـ Telegram ID بالحساب فوراً عند تسجيل الدخول لأول مرة
+      if (telegramId && telegramId !== 'test') {
+        await updateRow(SHEET_NAMES.USERS, user._rowIndex, { telegram_id: telegramId });
       }
-      
-      return isNameMatch && isPassMatch && isStatusActive;
-    });
 
-    if (!user) {
-      console.log(`Login failed for ${username}: User not found or inactive.`);
-      return res.status(401).json({ success: false, message: 'بيانات الدخول غير صحيحة أو الحساب غير مفعل' });
+      res.json({
+        success: true,
+        user: {
+          employee_id: user.EMPLOYEE_ID || user.employee_id,
+          username: user.USERNAME || user.username,
+          full_name: user.FULL_NAME || user.full_name,
+          role: user.ROLE || user.role || 'user',
+        },
+      });
+    } else {
+      res.status(401).json({ success: false, message: 'بيانات الدخول غير صحيحة أو الحساب غير نشط' });
     }
-    
-    console.log(`User ${username} authenticated successfully.`);
-
-    // تحديث telegram_id
-    await updateRow(SHEET_NAMES.USERS, user._rowIndex, { telegram_id: telegramId });
-
-    res.json({
-      success: true,
-      user: {
-        employee_id: user.EMPLOYEE_ID || user.employee_id,
-        full_name: user.FULL_NAME || user.full_name,
-        role: user.ROLE || user.role || 'user',
-      },
-    });
   } catch (error) {
-    console.error('❌ Login Error:', error);
-    res.status(500).json({ success: false, message: `خطأ في الاتصال بالقاعدة: ${error.message}` });
+    console.error(error);
+    res.status(500).json({ success: false, message: 'خطأ في الخادم' });
   }
 });
 

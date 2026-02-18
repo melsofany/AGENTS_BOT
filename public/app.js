@@ -23,13 +23,32 @@ if (window.location.pathname.includes('item.html')) {
 }
 
 // دوال الصفحة الرئيسية
-function checkLogin() {
-    const savedUser = localStorage.getItem('tg_user');
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        showItemsScreen();
-        loadItems();
-    } else {
+async function checkLogin() {
+    const telegramId = tg.initDataUnsafe?.user?.id?.toString();
+    
+    // إذا لم يتوفر Telegram ID (مثلاً في المتصفح العادي) نظهر شاشة الدخول
+    if (!telegramId) {
+        document.getElementById('login-screen').style.display = 'block';
+        return;
+    }
+
+    // التحقق من الهوية عبر Telegram ID من الخادم
+    try {
+        const response = await fetch(`/api/check-auth?telegramId=${telegramId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            currentUser = data.user;
+            localStorage.setItem('tg_user', JSON.stringify(currentUser));
+            showItemsScreen();
+            loadItems();
+        } else {
+            // إذا لم يكن مسجلاً، نظهر رسالة خطأ وشاشة الدخول
+            document.getElementById('login-screen').style.display = 'block';
+            document.getElementById('login-error').textContent = data.message;
+        }
+    } catch (err) {
+        console.error('Auth Check Error:', err);
         document.getElementById('login-screen').style.display = 'block';
     }
 }
