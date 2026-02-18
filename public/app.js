@@ -234,7 +234,10 @@ async function openProductModal(rfq, lineItem) {
         
         if (data.success) {
             modalBody.innerHTML = `
-                <img src="${data.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image+Found'}" alt="صورة المنتج">
+                <div style="margin-bottom: 15px;">
+                    <img src="${data.imageUrl}" alt="صورة المنتج" style="max-width: 100%; border-radius: 8px; cursor: pointer;" onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(lineItem)}&tbm=isch', '_blank')">
+                    <p style="font-size: 0.8em; color: #666; margin-top: 5px;">(اضغط على الصورة للبحث في Google)</p>
+                </div>
                 <h4>وصف ذكي (بالعربية)</h4>
                 <p>${data.arabicDescription || 'لا يوجد وصف عربي متاح حالياً'}</p>
             `;

@@ -373,22 +373,14 @@ app.get('/api/item-details', async (req, res) => {
     // إذا كان الطلب من العدسة (AI)
     if (ai === 'true') {
       const searchQuery = encodeURIComponent(desc);
-      // استخدام محرك بحث صور Pixabay (أكثر استقراراً)
-      imageUrl = `https://pixabay.com/images/search/${searchQuery}/`; 
-      // كخيار يعمل دائماً ومباشر
-      imageUrl = `https://api.dicebear.com/7.x/identicon/svg?seed=${searchQuery}`; // أيقونة فريدة كحل أخير
-      imageUrl = `https://dummyimage.com/600x400/D2691E/fff&text=${searchQuery}`; // صورة نصية واضحة
+      // استخدام رابط بحث مباشر من Google Images لعرض صورة حقيقية
+      imageUrl = `https://www.google.com/search?q=${searchQuery}&tbm=isch`; 
+      // كحل بديل يظهر صورة داخل التطبيق:
+      imageUrl = `https://loremflickr.com/600/400/${searchQuery}`;
       
-      // نستخدم محرك بحث الصور المباشر
-      imageUrl = `https://api.screenshotmachine.com/?key=dummy&url=https://www.google.com/search?q=${searchQuery}&tbm=isch`;
-      imageUrl = `https://placehold.co/600x400/D2691E/white?text=${searchQuery}`;
-      
-      // أفضل خيار حالي للصور الحقيقية
-      imageUrl = `https://loremflickr.com/g/600/400/${searchQuery}/all`;
-
       arabicDescription = await fetchArabicDescription(desc);
     } else {
-      imageUrl = `https://loremflickr.com/g/300/200/${encodeURIComponent(desc)}/all`;
+      imageUrl = `https://loremflickr.com/300/200/${encodeURIComponent(desc)}`;
     }
 
     // دالة مساعدة لجلب القيمة بغض النظر عن حالة الأحرف
@@ -454,18 +446,9 @@ app.post('/api/add-quote', async (req, res) => {
 
     const quoteId = generateQuoteId();
 
-    // حل جذري: استخدام مصفوفة للقيم بدلاً من الكائن لتجنب فحص الرؤوس المكررة
+    // حل جذري: استخدام مصفوفة للقيم بدلاً من الكائن لتجنب فحص الرؤوس المكررة نهائياً
     const sheet = await getSheet(SHEET_NAMES.QUOTATIONS);
     
-    // جلب الرؤوس بطريقة لا تسبب خطأ التكرار إذا أمكن، أو استخدام ترتيب افتراضي
-    let headers = [];
-    try {
-      await sheet.loadHeaderRow();
-      headers = sheet.headerValues;
-    } catch (e) {
-      console.error("Could not load headers due to duplicates, using raw append");
-    }
-
     const dataToMap = {
       QUOTE_ID: quoteId,
       RFQ: rfq,
@@ -480,19 +463,28 @@ app.post('/api/add-quote', async (req, res) => {
       END_DATE: endDate,
     };
 
-    if (headers.length > 0) {
-      const rowData = {};
-      headers.forEach(header => {
-        const key = header.toUpperCase().trim();
-        if (dataToMap[key] !== undefined) {
-          rowData[header] = dataToMap[key];
-        }
-      });
-      await sheet.addRow(rowData);
-    } else {
-      // إذا فشل تحميل الرؤوس، نضيف البيانات كمصفوفة (ترتيب افتراضي شائع)
-      const rowArray = [quoteId, rfq, lineItem, employeeId, supplierName, price, taxIncluded ? 'نعم' : 'لا', originalOrCopy, deliveryDays, startDate, endDate];
+    // بدلاً من استخدام sheet.addRow (التي تفحص الرؤوس)، سنستخدم sheet.addRows أو الطريقة اليدوية
+    // ولكن الطريقة الأكثر أماناً هي محاولة الإضافة كمصفوفة مباشرة
+    const rowArray = [
+      quoteId, rfq, lineItem, employeeId, supplierName, 
+      parseFloat(price), taxIncluded ? 'نعم' : 'لا', 
+      originalOrCopy, parseInt(deliveryDays), startDate, endDate
+    ];
+
+    try {
+      // محاولة الإضافة مباشرة كقيم (تتجاوز فحص الرؤوس في بعض الحالات)
       await sheet.addRow(rowArray);
+    } catch (e) {
+      console.warn("Standard addRow failed, attempting raw append via Google API...");
+      // إذا فشل كل شيء، نستخدم الإضافة اليدوية للخلايا
+      await sheet.loadCells();
+      const nextRow = sheet.rowCount;
+      await sheet.resize({ rowCount: nextRow + 1, columnCount: sheet.columnCount });
+      for (let i = 0; i < rowArray.length; i++) {
+        const cell = sheet.getCell(nextRow, i);
+        cell.value = rowArray[i];
+      }
+      await sheet.saveUpdatedCells();
     }
 
     res.json({ success: true, message: 'تم إضافة عرض السعر بنجاح', quoteId });
